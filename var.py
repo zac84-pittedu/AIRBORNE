@@ -1,0 +1,73 @@
+#   Based on original CVGIT var.py by Juan Aznar Poveda
+#   Technical University of Cartagena, GIT
+#   Trimmed + ported to Python 3 for headless multi-device chronoamperometry.
+# -*- coding: utf-8 -*-
+#
+# This file holds the low-level configuration: it opens the SPI (ADC) and I2C
+# (LMP91000 + MCP23017) links and defines the register constants used elsewhere.
+# The cyclic-voltammetry bias/sweep tables from the original project have been
+# removed; a constant-potential (chronoamperometry) measurement does not need them.
+
+# On Raspberry Pi OS install "python3-smbus" (provides "smbus"). Fall back to
+# smbus2 (pip install smbus2) if the classic module is absent; the interface used
+# here (read_byte_data / write_byte_data) is identical between the two.
+try:
+    import smbus
+except ImportError:
+    import smbus2 as smbus
+
+import spidev
+import time
+import sys
+
+# ---------------------------------------------------------------------------
+# SPI: ADC161S626 on the LMP91000EVM
+# ---------------------------------------------------------------------------
+spi = spidev.SpiDev()
+spi.open(0, 0)              # SPI0, CE0 (physical pin 24), matches the EVM wiring
+spi.mode = 1
+spi.max_speed_hz = 1000000
+
+# ---------------------------------------------------------------------------
+# I2C: shared bus 1 carries BOTH the LMP91000 and the MCP23017 mux driver
+# ---------------------------------------------------------------------------
+bus = smbus.SMBus(1)
+
+address = 0x48             # LMP91000 I2C address (analog front end)
+
+# ---- LMP91000 register configuration --------------------------------------
+LOCKWR = '00000000'        # unlock TIACN/REFCN for writing
+LOCKRO = '00000001'        # lock them (read-only)
+
+# Transimpedance gain (R_TIA). We use 7 kOhm.
+# Change TIA_SETTING (and R_TIA below) together to re-pick the gain.
+TIACN_TIAG_7_00_RLOAD_010 = '00001100'   # R_TIA = 7 kOhm,  R_LOAD = 10 ohm
+TIACN_TIAG_35_0_RLOAD_010 = '00010100'   # R_TIA = 35 kOhm (idle/deep-sleep config)
+TIA_SETTING = TIACN_TIAG_7_00_RLOAD_010  # <-- tunable: the active gain
+
+# Constant applied bias: +0.5 V (20% of VREF), from the paper's REFCN table.
+REFCN_BIAS_0V5 = '10111011'              # <-- +0.5 V constant potential
+
+# Operation mode: 3-lead amperometric cell (used here in 2-wire via the EVM jumper)
+MODECN_OP_MODE_3LEADAMPC = '00000011'
+MODECN_OP_MODE_DEEPSLEEP = '00000000'    # idle / shutdown state
+
+# ---- ADC -> current conversion constants ----------------------------------
+VREF = 2.5                 # LMP91000 reference voltage (V)
+VA = 5.0                   # single analog supply (V)
+ADC_BITS = 16
+BR = (2 ** ADC_BITS) - 1   # max decimal for 16-bit code (65535)
+SPAN = VA - (VREF / (2 ** ADC_BITS))   # full-scale span used in the voltage eqn
+R_TIA = 7000               # <-- tunable: ohms, MUST match TIA_SETTING's gain
+
+# ---------------------------------------------------------------------------
+# MCP23017 I2C GPIO expander -> drives the CD74HC4067 mux address lines
+# ---------------------------------------------------------------------------
+MCP_ADDR = 0x27            # confirmed via i2cdetect (A2/A1/A0 all shorted high)
+MCP_IODIRA = 0x00          # Port A direction register (0 = output)
+MCP_GPIOA = 0x12           # Port A output register
+
+# Mux wiring: MCP Port A bits 0..3 -> CD74HC4067 address lines S0..S3 (S0 = LSB).
+# The value written to the GPIOA low nibble selects the '4067 channel, so
+# device N (0..11) maps directly to channel N with this straight bit order.
+N_DEVICES = 12             # 12 devices on channels 0..11 of the 16-channel mux
