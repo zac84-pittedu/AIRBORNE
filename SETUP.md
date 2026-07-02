@@ -78,12 +78,15 @@ stored. Note when reporting: one point/device/second = mean of ~N reads.
 
 ## Things to know / tune
 
-- CURRENT OFFSET: the raw->current formula is carried over unchanged from the
-  original project. At raw = 0 it reports ~+178 uA, not 0 - there is a fixed
-  offset baked into the convention. For relative-change sensing this is
-  irrelevant (it cancels in dI). Because raw ADC is logged alongside current,
-  you can recompute absolute current however you like later. During bring-up,
-  it is worth checking the scaling against a known resistor.
+- CURRENT SCALING: the raw->current formula is carried over from the original
+  project and is accurate. Zero current corresponds to raw ~= -16384 (the output
+  resting at the internal zero, VREF/2 = 1.25 V), where the formula returns ~0 uA;
+  a 47 kOhm resistor at 0.5 V (true 10.6 uA) reads ~10.7 uA. The ~+178 uA you get
+  by putting raw = 0 into the formula is NOT an offset in the data -- raw = 0 is a
+  real, nonzero operating point (output = VREF), not the zero-current baseline. So
+  absolute current is trustworthy, not just relative change. Raw ADC is logged
+  alongside current, so you can still recompute later. During bring-up it is worth
+  checking the scaling against a known resistor.
 
 - TIA GAIN: 7 kOhm is the starting guess. If the raw column pins near its max
   (~+/-32767) you are saturating - drop to a lower gain by changing TIA_SETTING

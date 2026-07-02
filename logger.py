@@ -187,16 +187,18 @@ def main():
             os.fsync(f.fileno())
 
             # Aligned terminal printout for easy reading (does not affect the CSV).
-            # A header every TERM_HEADER_EVERY scans keeps columns labeled.
+            # Each device shows  raw|current(uA); header every TERM_HEADER_EVERY scans.
             if PRINT_TO_TERMINAL:
                 if scan_count % TERM_HEADER_EVERY == 0:
-                    hdr = "elapsed  " + "".join("  dev{:02d}".format(d).rjust(9)
-                                                for d in range(N_DEVICES))
-                    print(hdr)
-                    print("  (s)    " + ("     raw " * N_DEVICES))
-                line = "{:7.1f}  ".format(elapsed)
-                line += "".join("{:9d}".format(r) for r in raws)
-                print(line)
+                    labels = "  ".join("{:^12}".format("dev{:02d}".format(d))
+                                       for d in range(N_DEVICES))
+                    units = "  ".join("{:^12}".format("raw|uA")
+                                      for _ in range(N_DEVICES))
+                    print("{:>7}  {}".format("elapsed", labels))
+                    print("{:>7}  {}".format("(s)", units))
+                cells = "  ".join("{:>6.0f}|{:<5.1f}".format(raws[d], currents[d])
+                                  for d in range(N_DEVICES))
+                print("{:>7.1f}  {}".format(elapsed, cells))
             scan_count += 1
 
             led_state = not led_state

@@ -83,10 +83,7 @@ Key tunable constants:
   `SETTLE_S` (post-switch settle).
 
 If the raw ADC column pins near ±32767 the gain is too high — lower `R_TIA`
-(keep `TIA_SETTING` consistent). The current column carries a fixed offset
-inherited from the original conversion (≈ +178 µA at raw = 0); this is
-irrelevant for relative-change sensing and recoverable from the logged raw
-values. See `SETUP.md` for details.
+(keep `TIA_SETTING` consistent). The `raw_to_current()` conversion is accurate: zero current is at raw ≈ -16384 (the LMP's internal zero, output = VREF/2), where the formula returns ≈ 0 µA, and a 47 kΩ resistor at 0.5 V reads ≈ 10.7 µA (true 10.6 µA). Evaluating the formula at raw = 0 gives ≈ 178 µA, but raw = 0 is a real nonzero point (output = VREF), not the zero-current baseline — it is not an offset in the readings. Raw ADC is logged alongside current, so you can always recompute. See `SETUP.md` for details.
 
 ## Output
 
