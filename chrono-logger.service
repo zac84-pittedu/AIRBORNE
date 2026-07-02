@@ -5,8 +5,8 @@ After=local-fs.target
 [Service]
 Type=simple
 # Adjust this path to wherever you place the three .py files:
-WorkingDirectory=/home/pi/chrono
-ExecStart=/usr/bin/python3 /home/pi/chrono/logger.py
+WorkingDirectory=/home/airborne/Documents/AIRBORNE
+ExecStart=/usr/bin/python3 /home/airborne/Documents/AIRBORNE/logger.py
 # Restart if the script crashes (e.g. transient fault) but NOT after a clean
 # stop. A brief delay avoids a tight loop if the hardware isn't connected yet.
 Restart=on-failure
