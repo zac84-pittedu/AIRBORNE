@@ -39,6 +39,12 @@ AVG_WINDOW_S = 0.075       # per device: read back-to-back for this long, then a
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Results")
 
+# Terminal display (does not affect the CSV file). Prints an aligned table of raw
+# values each scan so you can eyeball which channel reads what. Set PRINT_TO_TERMINAL
+# False for silent running (e.g. under systemd).
+PRINT_TO_TERMINAL = True
+TERM_HEADER_EVERY = 20     # reprint the column header every N scans
+
 # ---------------------------------------------------------------------------
 # Onboard activity LED ("running" heartbeat). Cosmetic: every LED access is
 # guarded so a wrong path or a permission issue can never stop the measurement.
@@ -137,6 +143,7 @@ def main():
     t0 = time.monotonic()
     led_state = False
     reported_reads = False
+    scan_count = 0
 
     try:
         while RUNNING:
@@ -145,6 +152,8 @@ def main():
             elapsed = time.monotonic() - t0
 
             row = [ts, "{:.3f}".format(elapsed)]
+            raws = []
+            currents = []
             for dev in range(N_DEVICES):
                 mux_select(dev)
                 if SETTLE_S > 0:
@@ -158,6 +167,8 @@ def main():
                     n += 1
                 raw_mean = acc / n if n else 0
                 _volts, current_uA = raw_to_current(raw_mean)
+                raws.append(round(raw_mean))
+                currents.append(current_uA)
                 row.append(round(raw_mean))              # mean raw ADC count
                 row.append("{:.4f}".format(current_uA))  # current from the mean
                 if dev == 0:
@@ -174,6 +185,19 @@ def main():
             # costs at most the current second, never the whole run.
             f.flush()
             os.fsync(f.fileno())
+
+            # Aligned terminal printout for easy reading (does not affect the CSV).
+            # A header every TERM_HEADER_EVERY scans keeps columns labeled.
+            if PRINT_TO_TERMINAL:
+                if scan_count % TERM_HEADER_EVERY == 0:
+                    hdr = "elapsed  " + "".join("  dev{:02d}".format(d).rjust(9)
+                                                for d in range(N_DEVICES))
+                    print(hdr)
+                    print("  (s)    " + ("     raw " * N_DEVICES))
+                line = "{:7.1f}  ".format(elapsed)
+                line += "".join("{:9d}".format(r) for r in raws)
+                print(line)
+            scan_count += 1
 
             led_state = not led_state
             led.set(led_state)
