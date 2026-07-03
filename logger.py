@@ -3,7 +3,7 @@
 #   Based on the CVGIT project (Juan Aznar Poveda, Technical University of Cartagena)
 # -*- coding: utf-8 -*-
 #
-# Holds every device at a constant +0.5 V and logs current over time. Twelve
+# Holds every device at a constant +0.1 V and logs current over time. Twelve
 # devices share one LMP91000 front end; a CD74HC4067 analog mux (driven through
 # an MCP23017 over I2C) selects which device the transimpedance amplifier reads.
 # One full 12-device scan per second, one raw ADC read per device, one CSV row
@@ -117,7 +117,7 @@ def main():
     # --- configure hardware -------------------------------------------------
     try:
         mux_init()
-        init(LOCKWR, TIA_SETTING, REFCN_BIAS_0V5, MODECN_OP_MODE_3LEADAMPC)
+        init(LOCKWR, TIA_SETTING, REFCN_BIAS_0V1, MODECN_OP_MODE_3LEADAMPC)
     except OSError as e:
         # Almost always "device not connected / I2C error".
         print("Hardware init failed (check LMP91000 @0x48 and MCP23017 "
@@ -219,7 +219,7 @@ def main():
         # Park the front end in deep sleep and hand the LED back.
         try:
             init(LOCKRO, TIACN_TIAG_35_0_RLOAD_010,
-                 REFCN_BIAS_0V5, MODECN_OP_MODE_DEEPSLEEP)
+                 REFCN_BIAS_0V1, MODECN_OP_MODE_DEEPSLEEP)
         except Exception:
             pass
         led.set(False)

@@ -1,6 +1,6 @@
 # Headless 12-device chronoamperometry logger (Raspberry Pi Zero W, Pi OS Trixie)
 
-Holds 12 CNT-on-interdigitated-electrode devices at a constant +0.5 V and logs
+Holds 12 CNT-on-interdigitated-electrode devices at a constant +0.1 V and logs
 their current once per second to a CSV file. No screen, no GUI: it starts on
 boot, blinks the onboard LED to show it is running, and writes crash-safely.
 
@@ -19,8 +19,8 @@ edit the unit if you use a different path).
 - LMP91000EVM: I2C @ 0x48, SPI on SPI0/CE0. 2-WIRE jumper set. Op-mode 3-lead amperometric.
 - MCP23017:    I2C @ 0x27 (A2/A1/A0 all high). VCC = 3.3 V. Port A bits 0-3 -> mux S0-S3.
 - CD74HC4067:  VCC = 3.3 V, EN tied to GND (always enabled). Common line -> LMP WE/TIA input.
-               Channels 0-11 -> the 12 devices. All devices share the always-on 0.5 V bias.
-- Bias/gain:   +0.5 V (REFCN 10111011), R_TIA = 7 kOhm. Both tunable in var.py.
+               Channels 0-11 -> the 12 devices. All devices share the always-on 0.1 V bias.
+- Bias/gain:   +0.1 V (REFCN 10010011, internal zero 20%), R_TIA = 2.75 kOhm. Both tunable in var.py.
 
 ## One-time Pi setup
 
@@ -79,19 +79,20 @@ stored. Note when reporting: one point/device/second = mean of ~N reads.
 ## Things to know / tune
 
 - CURRENT SCALING: the raw->current formula is carried over from the original
-  project and is accurate. Zero current corresponds to raw ~= -16384 (the output
-  resting at the internal zero, VREF/2 = 1.25 V), where the formula returns ~0 uA;
-  a 47 kOhm resistor at 0.5 V (true 10.6 uA) reads ~10.7 uA. The ~+178 uA you get
-  by putting raw = 0 into the formula is NOT an offset in the data -- raw = 0 is a
-  real, nonzero operating point (output = VREF), not the zero-current baseline. So
-  absolute current is trustworthy, not just relative change. Raw ADC is logged
-  alongside current, so you can still recompute later. During bring-up it is worth
-  checking the scaling against a known resistor.
+  project and is accurate. With the internal zero now at 20% of VREF, zero current
+  corresponds to raw ~= -26214 (VOUT resting at INT_ZERO_V = 0.5 V), where the
+  formula returns ~0 uA; at 2.75 kOhm the scale is ~36 counts/uA. raw = 0 maps to
+  VOUT = VREF = 2.5 V, a real ~727 uA point, not the baseline -- so there is no
+  offset in the data and absolute current is trustworthy, not just relative change.
+  Raw ADC is logged alongside current, so you can still recompute later. During
+  bring-up it is worth checking the scaling against a known resistor.
 
-- TIA GAIN: 7 kOhm is the starting guess. If the raw column pins near its max
-  (~+/-32767) you are saturating - drop to a lower gain by changing TIA_SETTING
-  and R_TIA (keep them consistent) in var.py. If raw barely moves off the noise
-  floor, raise the gain.
+- TIA GAIN: fixed at 2.75 kOhm, the LOWEST internal gain, chosen so VOUT clears
+  the rail at the LMP's ~750 uA drive ceiling. Being the floor, you cannot drop
+  gain further internally: if raw still pins near the rail, lower the bias
+  (REFCN_BIAS_0V1) or fit an external R_TIA below 2.75 kOhm. If raw barely moves
+  off the noise floor at the cold end, raise R_TIA (accepting a lower peak) or
+  switch gains per scan. Keep TIA_SETTING and R_TIA consistent.
 
 - TIMING: in logger.py. Each device is settled (SETTLE_S = 3 ms) then read
   back-to-back for AVG_WINDOW_S = 75 ms and all reads averaged. (SETTLE + WINDOW)

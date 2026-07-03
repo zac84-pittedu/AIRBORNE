@@ -50,9 +50,11 @@ def readadc():
 
 def raw_to_current(raw):
     # Convert a raw ADC count to current in microamps, using the LMP91000
-    # equations: V = (raw*SPAN/BR) + VREF ;  I = (V - VREF/2)/R_TIA * 1e6
+    # equations: V = (raw*SPAN/BR) + VREF ;  I = (V - INT_ZERO_V)/R_TIA * 1e6
+    # INT_ZERO_V is the internal-zero rest voltage (20% of VREF = 0.5 V): VOUT
+    # sits there at zero current, so it is the baseline subtracted here.
     volts = (raw * SPAN) / BR + VREF
-    current_uA = ((volts - (VREF / 2)) / R_TIA) * 1000000
+    current_uA = ((volts - INT_ZERO_V) / R_TIA) * 1000000
     return volts, current_uA
 
 

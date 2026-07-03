@@ -39,14 +39,23 @@ address = 0x48             # LMP91000 I2C address (analog front end)
 LOCKWR = '00000000'        # unlock TIACN/REFCN for writing
 LOCKRO = '00000001'        # lock them (read-only)
 
-# Transimpedance gain (R_TIA). We use 7 kOhm.
+# Transimpedance gain (R_TIA). We use the LOWEST internal gain, 2.75 kOhm, so
+# VOUT stays below the 3.3 V rail at the LMP's ~750 uA output-drive ceiling.
 # Change TIA_SETTING (and R_TIA below) together to re-pick the gain.
+TIACN_TIAG_2_75_RLOAD_010 = '00000100'   # R_TIA = 2.75 kOhm, R_LOAD = 10 ohm
 TIACN_TIAG_7_00_RLOAD_010 = '00001100'   # R_TIA = 7 kOhm,  R_LOAD = 10 ohm
 TIACN_TIAG_35_0_RLOAD_010 = '00010100'   # R_TIA = 35 kOhm (idle/deep-sleep config)
-TIA_SETTING = TIACN_TIAG_7_00_RLOAD_010  # <-- tunable: the active gain
+TIA_SETTING = TIACN_TIAG_2_75_RLOAD_010  # <-- tunable: the active gain
 
-# Constant applied bias: +0.5 V (20% of VREF), from the paper's REFCN table.
-REFCN_BIAS_0V5 = '10111011'              # <-- +0.5 V constant potential
+# Constant applied bias: +0.1 V (4% of VREF), internal zero at 20% of VREF (0.5 V).
+# Current is one-directional (oxidation only), so VOUT swings up from the 0.5 V
+# rest point; the low bias keeps the peak under the 750 uA drive ceiling and the
+# low zero keeps VOUT clear of the rail. REFCN byte 10010011 =
+#   bit7  REF_SOURCE = 1    (external VREF)
+#   6:5   INT_Z      = 00   (20% -> 0.5 V zero)
+#   bit4  BIAS_SIGN  = 1    (positive, VWE > VRE)
+#   3:0   BIAS       = 0011 (4% -> 0.1 V)
+REFCN_BIAS_0V1 = '10010011'              # <-- +0.1 V constant potential, 20% zero
 
 # Operation mode: 3-lead amperometric cell (used here in 2-wire via the EVM jumper)
 MODECN_OP_MODE_3LEADAMPC = '00000011'
@@ -58,7 +67,8 @@ VA = 5.0                   # single analog supply (V)
 ADC_BITS = 16
 BR = (2 ** ADC_BITS) - 1   # max decimal for 16-bit code (65535)
 SPAN = VA - (VREF / (2 ** ADC_BITS))   # full-scale span used in the voltage eqn
-R_TIA = 7000               # <-- tunable: ohms, MUST match TIA_SETTING's gain
+INT_ZERO_V = 0.20 * VREF   # internal-zero rest voltage (20% of VREF = 0.5 V)
+R_TIA = 2750               # <-- tunable: ohms, MUST match TIA_SETTING's gain
 
 # ---------------------------------------------------------------------------
 # MCP23017 I2C GPIO expander -> drives the CD74HC4067 mux address lines
