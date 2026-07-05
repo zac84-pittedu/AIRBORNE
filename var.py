@@ -85,6 +85,8 @@ V_EFF = 0.512              # effective loop bias (V) at 0.5 V nominal; MEASURED 
                            # and confirmed against an SMU'd 986.7-ohm resistor
                            # (rig read 994 ohm). Includes a fixed loop offset.
 I_FLOOR_UA = 0.5           # below this a channel is treated as open (no device)
+V_REPORT = 0.5             # voltage the main log reports current at: I = V_REPORT
+                           # / R_device (SMU-equivalent, to match prior 0.5 V data)
 R_SERIES = [435, 447, 441, 446, 431, 437,   # ch0-5   (0.5 V two-point solve)
             439,                             # ch6
             433,                             # ch7

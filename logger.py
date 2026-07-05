@@ -126,20 +126,32 @@ def main():
 
     led = ActivityLED()
 
-    # --- open output file, write header ------------------------------------
+    # --- open output files, write headers ----------------------------------
+    # Two comma-separated files per run:
+    #   main   -> timestamp, elapsed, and per device the SMU-equivalent current
+    #             (V_REPORT / corrected R_device); relates to prior 0.5 V data.
+    #   detail -> timestamp, elapsed, and per device raw, actual loop current, R_ohm.
     stamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
-    fname = os.path.join(OUTPUT_DIR, "chrono_{}.csv".format(stamp))
-    header = ["iso_timestamp", "elapsed_s"]
-    for d in range(N_DEVICES):
-        header += ["dev{:02d}_raw".format(d), "dev{:02d}_current_uA".format(d),
-                   "dev{:02d}_R_ohm".format(d)]
+    fname_main = os.path.join(OUTPUT_DIR, "chrono_{}.csv".format(stamp))
+    fname_detail = os.path.join(OUTPUT_DIR, "chrono_{}_detail.csv".format(stamp))
 
-    f = open(fname, "w", newline="")
-    writer = csv.writer(f)
-    writer.writerow(header)
-    f.flush()
-    os.fsync(f.fileno())
-    print("Logging to {}".format(fname))
+    header_main = ["iso_timestamp", "elapsed_s"]
+    header_detail = ["iso_timestamp", "elapsed_s"]
+    for d in range(N_DEVICES):
+        header_main.append("dev{:02d}_current_uA".format(d))
+        header_detail += ["dev{:02d}_raw".format(d), "dev{:02d}_actual_uA".format(d),
+                          "dev{:02d}_R_ohm".format(d)]
+
+    f_main = open(fname_main, "w", newline="")
+    f_detail = open(fname_detail, "w", newline="")
+    w_main = csv.writer(f_main)
+    w_detail = csv.writer(f_detail)
+    w_main.writerow(header_main)
+    w_detail.writerow(header_detail)
+    for fh in (f_main, f_detail):
+        fh.flush()
+        os.fsync(fh.fileno())
+    print("Logging to {}\n     and {}".format(fname_main, fname_detail))
 
     t0 = time.monotonic()
     led_state = False
@@ -152,7 +164,8 @@ def main():
             ts = datetime.now().isoformat(timespec="milliseconds")
             elapsed = time.monotonic() - t0
 
-            row = [ts, "{:.3f}".format(elapsed)]
+            row_main = [ts, "{:.3f}".format(elapsed)]
+            row_detail = [ts, "{:.3f}".format(elapsed)]
             raws = []
             currents = []
             ohms = []
@@ -170,12 +183,16 @@ def main():
                 raw_mean = acc / n if n else 0
                 _volts, current_uA = raw_to_current(raw_mean)
                 r_ohm = device_ohms(current_uA, dev)
+                i_corr = None if (r_ohm is None or r_ohm <= 0) else V_REPORT / r_ohm * 1e6
                 raws.append(round(raw_mean))
                 currents.append(current_uA)
                 ohms.append(r_ohm)
-                row.append(round(raw_mean))              # mean raw ADC count
-                row.append("{:.4f}".format(current_uA))  # loop current from the mean
-                row.append("" if r_ohm is None else "{:.1f}".format(r_ohm))  # series-corrected device R (ohm)
+                # main: SMU-equivalent current computed from the corrected resistance
+                row_main.append("" if i_corr is None else "{:.4f}".format(i_corr))
+                # detail: raw, actual loop current, corrected device resistance
+                row_detail.append(round(raw_mean))
+                row_detail.append("{:.4f}".format(current_uA))
+                row_detail.append("" if r_ohm is None else "{:.1f}".format(r_ohm))
                 if dev == 0:
                     reads_dev0 = n
 
@@ -185,11 +202,13 @@ def main():
                       .format(reads_dev0, AVG_WINDOW_S * 1000))
                 reported_reads = True
 
-            writer.writerow(row)
-            # Push this row to physical storage so an unexpected power loss
+            w_main.writerow(row_main)
+            w_detail.writerow(row_detail)
+            # Push both rows to physical storage so an unexpected power loss
             # costs at most the current second, never the whole run.
-            f.flush()
-            os.fsync(f.fileno())
+            for fh in (f_main, f_detail):
+                fh.flush()
+                os.fsync(fh.fileno())
 
             # Aligned terminal printout for easy reading (does not affect the CSV).
             # Each device shows  raw|R_ohm (mux-corrected); header every TERM_HEADER_EVERY scans.
@@ -219,9 +238,10 @@ def main():
                 time.sleep(SCAN_INTERVAL - dt)
     finally:
         try:
-            f.flush()
-            os.fsync(f.fileno())
-            f.close()
+            for fh in (f_main, f_detail):
+                fh.flush()
+                os.fsync(fh.fileno())
+                fh.close()
         except Exception:
             pass
         # Park the front end in deep sleep and hand the LED back.

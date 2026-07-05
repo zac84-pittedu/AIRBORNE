@@ -43,7 +43,7 @@ Note: numpy / matplotlib / tkinter are NOT needed by this headless version.
 
 It prints the output filename and starts scanning; the onboard LED blinks ~1 Hz.
 Ctrl-C stops it cleanly (file closed, front end parked, LED restored). Check the
-newest file in `Results/` and confirm 38 columns and one row per second.
+newest file in `Results/` and confirm two files (main + _detail) with one row per second.
 
 ## Auto-start on boot
 
@@ -60,10 +60,16 @@ cleanly). To disable auto-start: `sudo systemctl disable chrono-logger.service`.
 
 ## Output format
 
-One timestamped file per run: `Results/chrono_YYYY-MM-DD_HHMMSS.csv`, with a
-header row, then one row per scan:
+Two comma-separated files per run, one row per scan:
 
-    iso_timestamp, elapsed_s, dev00_raw, dev00_current_uA, dev00_R_ohm, ... dev11_raw, dev11_current_uA, dev11_R_ohm
+  MAIN   Results/chrono_YYYY-MM-DD_HHMMSS.csv  (simple):
+    iso_timestamp, elapsed_s, dev00_current_uA, ... dev11_current_uA
+    -> devNN_current_uA = SMU-equivalent current V_REPORT/R_device (V_REPORT=0.5 V),
+       computed from the corrected resistance; relates to prior 0.5 V data. Blank if open.
+
+  DETAIL Results/chrono_YYYY-MM-DD_HHMMSS_detail.csv:
+    iso_timestamp, elapsed_s, dev00_raw, dev00_actual_uA, dev00_R_ohm, ... dev11_R_ohm
+    -> raw ADC, actual (mux-taxed) loop current, and series-corrected R_ohm (blank if open).
 
 Each device value per row is the MEAN of all ADC reads taken during a ~75 ms
 window for that device (mean raw ADC and the current computed from it). The

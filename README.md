@@ -86,14 +86,23 @@ At the lowest internal gain (2.75 kΩ), if the raw column still pins near the ra
 
 ## Output
 
-One timestamped file per run, `Results/chrono_YYYY-MM-DD_HHMMSS.csv`, with a
-header then one row per scan:
+Two comma-separated files per run, one row per scan:
+
+**Main** — `Results/chrono_YYYY-MM-DD_HHMMSS.csv` (the simple one):
 
 ```
-iso_timestamp, elapsed_s, dev00_raw, dev00_current_uA, dev00_R_ohm, ... dev11_raw, dev11_current_uA, dev11_R_ohm
+iso_timestamp, elapsed_s, dev00_current_uA, ... dev11_current_uA
 ```
 
-`devNN_R_ohm` is the series-resistance-corrected device resistance (`V_EFF / I - R_SERIES[ch]`), blank when a channel reads open. Each device value is the **mean of all ADC reads taken during its ~75 ms window**
+`devNN_current_uA` here is the **SMU-equivalent current**, `V_REPORT / R_device` (V_REPORT = 0.5 V) computed from the mux-corrected resistance — the number that relates to prior 0.5 V measurements. Blank when a channel reads open.
+
+**Detail** — `Results/chrono_YYYY-MM-DD_HHMMSS_detail.csv`:
+
+```
+iso_timestamp, elapsed_s, dev00_raw, dev00_actual_uA, dev00_R_ohm, ... dev11_R_ohm
+```
+
+`devNN_raw` is the mean ADC count, `devNN_actual_uA` the actual (mux-taxed) loop current, and `devNN_R_ohm` the series-corrected device resistance (`V_EFF / I - R_SERIES[ch]`), blank when open. Each device value is the **mean of all ADC reads taken during its ~75 ms window**
 that second. `elapsed_s` (monotonic clock) is always reliable; `iso_timestamp` is
 wall-clock and only as accurate as the Pi's clock (the Zero W has no RTC — see the
 clock note in `SETUP.md`).
