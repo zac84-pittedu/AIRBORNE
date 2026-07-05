@@ -80,15 +80,16 @@ R_TIA = 2750               # <-- tunable: ohms, MUST match TIA_SETTING's gain
 #     R_device = V_EFF / I_loop - R_SERIES[channel]
 # Constants below come from a resistor-ladder calibration (see SETUP.md); re-run
 # that ladder and update them after any rewire, reflow, or mux swap.
-V_EFF = 0.489              # effective loop bias (V) at 0.5 V nominal; MEASURED
-                           # from a 12-channel 2200-ohm ladder (mean 0.4889,
-                           # sd 1.2 mV), using the 0.1 V R_SERIES table below.
+V_EFF = 0.512              # effective loop bias (V) at 0.5 V nominal; MEASURED by
+                           # a two-point solve (2200 + 470 ohm on every channel)
+                           # and confirmed against an SMU'd 986.7-ohm resistor
+                           # (rig read 994 ohm). Includes a fixed loop offset.
 I_FLOOR_UA = 0.5           # below this a channel is treated as open (no device)
-R_SERIES = [319, 316, 318, 318, 320, 314,   # ch0-5   (measured)
-            318,                             # ch6     (not calibrated -> ~average)
-            321,                             # ch7     (measured)
-            318,                             # ch8     (not calibrated -> ~average)
-            316, 316, 318]                   # ch9-11  (measured)
+R_SERIES = [435, 447, 441, 446, 431, 437,   # ch0-5   (0.5 V two-point solve)
+            439,                             # ch6
+            433,                             # ch7
+            435,                             # ch8
+            431, 443, 432]                   # ch9-11
 
 # ---------------------------------------------------------------------------
 # MCP23017 I2C GPIO expander -> drives the CD74HC4067 mux address lines
