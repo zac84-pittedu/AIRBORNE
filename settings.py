@@ -58,6 +58,16 @@ def raw_to_current(raw):
     return volts, current_uA
 
 
+def device_ohms(loop_uA, channel):
+    # Series-resistance correction. loop_uA is the measured loop current from
+    # raw_to_current(); the mux + wiring add R_SERIES[channel] ohms in series, so
+    # for an ohmic device the true device resistance is V_EFF/I - R_SERIES[ch].
+    # Returns ohms, or None when current is below I_FLOOR_UA (open / no device).
+    if loop_uA is None or loop_uA < I_FLOOR_UA:
+        return None
+    return V_EFF / (loop_uA * 1e-6) - R_SERIES[channel]
+
+
 # ---------------------------------------------------------------------------
 # MCP23017 mux control (I2C)
 # ---------------------------------------------------------------------------

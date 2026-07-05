@@ -11,7 +11,7 @@ originally performed cyclic voltammetry on a single device through a GUI.
 
 ## What it does
 
-- Applies a constant **+0.1 V** bias to all 12 devices continuously (2-wire).
+- Applies a constant **+0.5 V** bias to all 12 devices continuously (2-wire).
 - Uses a single **LMP91000** analog front end; a **CD74HC4067** 16-channel analog
   multiplexer (driven by an **MCP23017** I²C GPIO expander) selects which device
   the transimpedance amplifier reads.
@@ -78,11 +78,11 @@ See [`SETUP.md`](SETUP.md) for the systemd auto-start setup.
 Key tunable constants:
 
 - `var.py` — `R_TIA` / `TIA_SETTING` (transimpedance gain, 2.75 kΩ),
-  `REFCN_BIAS_0V1` (applied potential, 0.1 V), `MCP_ADDR`, `N_DEVICES`.
+  `REFCN_BIAS_0V5` (applied potential, 0.5 V), `MCP_ADDR`, `N_DEVICES`, `V_EFF` / `R_SERIES` (mux series-R correction).
 - `logger.py` — `SCAN_INTERVAL` (1 s), `AVG_WINDOW_S` (75 ms averaging window),
   `SETTLE_S` (post-switch settle).
 
-At the lowest internal gain (2.75 kΩ), if the raw column still pins near the rail the applied bias is too high — lower it in `REFCN_BIAS_0V1`, or fit an external `R_TIA` below 2.75 kΩ. The `raw_to_current()` conversion is accurate: with the internal zero at 20% of VREF, zero current sits at raw ≈ -26214 (VOUT resting at 0.5 V), where the formula returns ≈ 0 µA, and the scale is ≈ 36 counts/µA. raw = 0 maps to VOUT = VREF = 2.5 V, a real ≈ 727 µA point, not the baseline — there is no offset in the readings. Raw ADC is logged alongside current, so you can always recompute. See `SETUP.md` for details.
+At the lowest internal gain (2.75 kΩ), if the raw column still pins near the rail the applied bias is too high — lower it in `REFCN_BIAS_0V5`, or fit an external `R_TIA` below 2.75 kΩ. The `raw_to_current()` conversion is accurate: with the internal zero at 20% of VREF, zero current sits at raw ≈ -26214 (VOUT resting at 0.5 V), where the formula returns ≈ 0 µA, and the scale is ≈ 36 counts/µA. raw = 0 maps to VOUT = VREF = 2.5 V, a real ≈ 727 µA point, not the baseline — there is no offset in the readings. Raw ADC is logged alongside current, so you can always recompute. See `SETUP.md` for details.
 
 ## Output
 
@@ -90,10 +90,10 @@ One timestamped file per run, `Results/chrono_YYYY-MM-DD_HHMMSS.csv`, with a
 header then one row per scan:
 
 ```
-iso_timestamp, elapsed_s, dev00_raw, dev00_current_uA, ... dev11_raw, dev11_current_uA
+iso_timestamp, elapsed_s, dev00_raw, dev00_current_uA, dev00_R_ohm, ... dev11_raw, dev11_current_uA, dev11_R_ohm
 ```
 
-Each device value is the **mean of all ADC reads taken during its ~75 ms window**
+`devNN_R_ohm` is the series-resistance-corrected device resistance (`V_EFF / I - R_SERIES[ch]`), blank when a channel reads open. Each device value is the **mean of all ADC reads taken during its ~75 ms window**
 that second. `elapsed_s` (monotonic clock) is always reliable; `iso_timestamp` is
 wall-clock and only as accurate as the Pi's clock (the Zero W has no RTC — see the
 clock note in `SETUP.md`).
@@ -119,7 +119,7 @@ file in this repository.
 
 - Ported from Python 2 to Python 3 (Raspberry Pi OS Trixie / Python 3.13).
 - Removed the Tkinter GUI, live matplotlib plotting, and the `numpy` dependency.
-- Replaced cyclic voltammetry with constant-potential chronoamperometry at 0.1 V.
+- Replaced cyclic voltammetry with constant-potential chronoamperometry at 0.5 V.
 - Added support for 12 devices via a CD74HC4067 multiplexer driven by an MCP23017
   over I²C (direct `smbus` register writes; no additional library).
 - Added time-bounded per-device averaging, onboard-LED heartbeat, timestamped CSV

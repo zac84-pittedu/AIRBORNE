@@ -3,7 +3,7 @@
 #   Based on the CVGIT project (Juan Aznar Poveda, Technical University of Cartagena)
 # -*- coding: utf-8 -*-
 #
-# Holds every device at a constant +0.1 V and logs current over time. Twelve
+# Holds every device at a constant +0.5 V and logs current over time. Twelve
 # devices share one LMP91000 front end; a CD74HC4067 analog mux (driven through
 # an MCP23017 over I2C) selects which device the transimpedance amplifier reads.
 # One full 12-device scan per second, one raw ADC read per device, one CSV row
@@ -19,7 +19,7 @@ import signal
 from datetime import datetime
 
 from var import *
-from settings import (init, readadc, raw_to_current,
+from settings import (init, readadc, raw_to_current, device_ohms,
                       mux_init, mux_select)
 
 # ---------------------------------------------------------------------------
@@ -117,7 +117,7 @@ def main():
     # --- configure hardware -------------------------------------------------
     try:
         mux_init()
-        init(LOCKWR, TIA_SETTING, REFCN_BIAS_0V1, MODECN_OP_MODE_3LEADAMPC)
+        init(LOCKWR, TIA_SETTING, REFCN_BIAS_0V5, MODECN_OP_MODE_3LEADAMPC)
     except OSError as e:
         # Almost always "device not connected / I2C error".
         print("Hardware init failed (check LMP91000 @0x48 and MCP23017 "
@@ -131,7 +131,8 @@ def main():
     fname = os.path.join(OUTPUT_DIR, "chrono_{}.csv".format(stamp))
     header = ["iso_timestamp", "elapsed_s"]
     for d in range(N_DEVICES):
-        header += ["dev{:02d}_raw".format(d), "dev{:02d}_current_uA".format(d)]
+        header += ["dev{:02d}_raw".format(d), "dev{:02d}_current_uA".format(d),
+                   "dev{:02d}_R_ohm".format(d)]
 
     f = open(fname, "w", newline="")
     writer = csv.writer(f)
@@ -167,10 +168,12 @@ def main():
                     n += 1
                 raw_mean = acc / n if n else 0
                 _volts, current_uA = raw_to_current(raw_mean)
+                r_ohm = device_ohms(current_uA, dev)
                 raws.append(round(raw_mean))
                 currents.append(current_uA)
                 row.append(round(raw_mean))              # mean raw ADC count
-                row.append("{:.4f}".format(current_uA))  # current from the mean
+                row.append("{:.4f}".format(current_uA))  # loop current from the mean
+                row.append("" if r_ohm is None else "{:.1f}".format(r_ohm))  # series-corrected device R (ohm)
                 if dev == 0:
                     reads_dev0 = n
 
@@ -219,7 +222,7 @@ def main():
         # Park the front end in deep sleep and hand the LED back.
         try:
             init(LOCKRO, TIACN_TIAG_35_0_RLOAD_010,
-                 REFCN_BIAS_0V1, MODECN_OP_MODE_DEEPSLEEP)
+                 REFCN_BIAS_0V5, MODECN_OP_MODE_DEEPSLEEP)
         except Exception:
             pass
         led.set(False)

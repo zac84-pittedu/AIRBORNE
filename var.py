@@ -47,15 +47,16 @@ TIACN_TIAG_7_00_RLOAD_010 = '00001100'   # R_TIA = 7 kOhm,  R_LOAD = 10 ohm
 TIACN_TIAG_35_0_RLOAD_010 = '00010100'   # R_TIA = 35 kOhm (idle/deep-sleep config)
 TIA_SETTING = TIACN_TIAG_2_75_RLOAD_010  # <-- tunable: the active gain
 
-# Constant applied bias: +0.1 V (4% of VREF), internal zero at 20% of VREF (0.5 V).
-# Current is one-directional (oxidation only), so VOUT swings up from the 0.5 V
-# rest point; the low bias keeps the peak under the 750 uA drive ceiling and the
-# low zero keeps VOUT clear of the rail. REFCN byte 10010011 =
+# Constant applied bias: +0.5 V (20% of VREF), internal zero at 20% of VREF (0.5 V).
+# Chosen to match prior 0.5 V characterization data. Current is one-directional
+# (oxidation only), so VOUT swings up from the 0.5 V rest point. Measured warm-end
+# peak is ~420 uA loop (room temp; devices only cool from here), well under the
+# 750 uA drive ceiling. REFCN byte 10011011 =
 #   bit7  REF_SOURCE = 1    (external VREF)
 #   6:5   INT_Z      = 00   (20% -> 0.5 V zero)
 #   bit4  BIAS_SIGN  = 1    (positive, VWE > VRE)
-#   3:0   BIAS       = 0011 (4% -> 0.1 V)
-REFCN_BIAS_0V1 = '10010011'              # <-- +0.1 V constant potential, 20% zero
+#   3:0   BIAS       = 1011 (20% -> 0.5 V)
+REFCN_BIAS_0V5 = '10011011'              # <-- +0.5 V constant potential, 20% zero
 
 # Operation mode: 3-lead amperometric cell (used here in 2-wire via the EVM jumper)
 MODECN_OP_MODE_3LEADAMPC = '00000011'
@@ -69,6 +70,24 @@ BR = (2 ** ADC_BITS) - 1   # max decimal for 16-bit code (65535)
 SPAN = VA - (VREF / (2 ** ADC_BITS))   # full-scale span used in the voltage eqn
 INT_ZERO_V = 0.20 * VREF   # internal-zero rest voltage (20% of VREF = 0.5 V)
 R_TIA = 2750               # <-- tunable: ohms, MUST match TIA_SETTING's gain
+
+# ---------------------------------------------------------------------------
+# Series-resistance correction (mux R_on + wiring)
+# ---------------------------------------------------------------------------
+# The analog mux adds ~318 ohm of on-resistance (at 3.3 V) in series with each
+# device, so the device sees less than the applied bias. For an ohmic device the
+# true resistance is recovered downstream (settings.device_ohms) as
+#     R_device = V_EFF / I_loop - R_SERIES[channel]
+# Constants below come from a resistor-ladder calibration (see SETUP.md); re-run
+# that ladder and update them after any rewire, reflow, or mux swap.
+V_EFF = 0.5095             # effective loop bias (V); ESTIMATE scaled x5 from the
+                           # 0.1 V ladder -- RE-RUN the ladder at 0.5 V to lock it
+I_FLOOR_UA = 0.5           # below this a channel is treated as open (no device)
+R_SERIES = [319, 316, 318, 318, 320, 314,   # ch0-5   (measured)
+            318,                             # ch6     (not calibrated -> ~average)
+            321,                             # ch7     (measured)
+            318,                             # ch8     (not calibrated -> ~average)
+            316, 316, 318]                   # ch9-11  (measured)
 
 # ---------------------------------------------------------------------------
 # MCP23017 I2C GPIO expander -> drives the CD74HC4067 mux address lines

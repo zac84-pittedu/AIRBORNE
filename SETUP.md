@@ -1,6 +1,6 @@
 # Headless 12-device chronoamperometry logger (Raspberry Pi Zero W, Pi OS Trixie)
 
-Holds 12 CNT-on-interdigitated-electrode devices at a constant +0.1 V and logs
+Holds 12 CNT-on-interdigitated-electrode devices at a constant +0.5 V and logs
 their current once per second to a CSV file. No screen, no GUI: it starts on
 boot, blinks the onboard LED to show it is running, and writes crash-safely.
 
@@ -19,8 +19,8 @@ edit the unit if you use a different path).
 - LMP91000EVM: I2C @ 0x48, SPI on SPI0/CE0. 2-WIRE jumper set. Op-mode 3-lead amperometric.
 - MCP23017:    I2C @ 0x27 (A2/A1/A0 all high). VCC = 3.3 V. Port A bits 0-3 -> mux S0-S3.
 - CD74HC4067:  VCC = 3.3 V, EN tied to GND (always enabled). Common line -> LMP WE/TIA input.
-               Channels 0-11 -> the 12 devices. All devices share the always-on 0.1 V bias.
-- Bias/gain:   +0.1 V (REFCN 10010011, internal zero 20%), R_TIA = 2.75 kOhm. Both tunable in var.py.
+               Channels 0-11 -> the 12 devices. All devices share the always-on 0.5 V bias.
+- Bias/gain:   +0.5 V (REFCN 10011011, internal zero 20%), R_TIA = 2.75 kOhm. Both tunable in var.py.
 
 ## One-time Pi setup
 
@@ -43,7 +43,7 @@ Note: numpy / matplotlib / tkinter are NOT needed by this headless version.
 
 It prints the output filename and starts scanning; the onboard LED blinks ~1 Hz.
 Ctrl-C stops it cleanly (file closed, front end parked, LED restored). Check the
-newest file in `Results/` and confirm 26 columns and one row per second.
+newest file in `Results/` and confirm 38 columns and one row per second.
 
 ## Auto-start on boot
 
@@ -63,7 +63,7 @@ cleanly). To disable auto-start: `sudo systemctl disable chrono-logger.service`.
 One timestamped file per run: `Results/chrono_YYYY-MM-DD_HHMMSS.csv`, with a
 header row, then one row per scan:
 
-    iso_timestamp, elapsed_s, dev00_raw, dev00_current_uA, ... dev11_raw, dev11_current_uA
+    iso_timestamp, elapsed_s, dev00_raw, dev00_current_uA, dev00_R_ohm, ... dev11_raw, dev11_current_uA, dev11_R_ohm
 
 Each device value per row is the MEAN of all ADC reads taken during a ~75 ms
 window for that device (mean raw ADC and the current computed from it). The
@@ -87,10 +87,18 @@ stored. Note when reporting: one point/device/second = mean of ~N reads.
   Raw ADC is logged alongside current, so you can still recompute later. During
   bring-up it is worth checking the scaling against a known resistor.
 
+- SERIES RESISTANCE: the mux + wiring add ~318 ohm in series with each device.
+  settings.device_ohms() removes it per channel (R_device = V_EFF/I_loop -
+  R_SERIES[ch]) and logs the result as devNN_R_ohm. V_EFF (~0.51 V) and the
+  12-entry R_SERIES table are in var.py, from the resistor-ladder calibration;
+  re-run and update them after any rewire, reflow, or mux swap. At the 200 ohm
+  warm end this subtracts ~318 of ~518 ohm, so accuracy rides on R_SERIES
+  stability -- a low-R_on mux (e.g. ADG706) would make the correction negligible.
+
 - TIA GAIN: fixed at 2.75 kOhm, the LOWEST internal gain, chosen so VOUT clears
   the rail at the LMP's ~750 uA drive ceiling. Being the floor, you cannot drop
   gain further internally: if raw still pins near the rail, lower the bias
-  (REFCN_BIAS_0V1) or fit an external R_TIA below 2.75 kOhm. If raw barely moves
+  (REFCN_BIAS_0V5) or fit an external R_TIA below 2.75 kOhm. If raw barely moves
   off the noise floor at the cold end, raise R_TIA (accepting a lower peak) or
   switch gains per scan. Keep TIA_SETTING and R_TIA consistent.
 
