@@ -11,16 +11,36 @@ boot, blinks the onboard LED to show it is running, and writes crash-safely.
 - `logger.py`   - the main loop (run this)
 - `chrono-logger.service` - systemd unit for auto-start on boot
 
-Put the three `.py` files in one folder (the service assumes `/home/pi/chrono` -
-edit the unit if you use a different path).
+Put all files in one folder. The service expects `/home/airborne/Documents/AIRBORNE`;
+edit the unit's two paths if you use a different location. See Install below.
 
 ## Hardware map (as wired)
 
-- LMP91000EVM: I2C @ 0x48, SPI on SPI0/CE0. 2-WIRE jumper set. Op-mode 3-lead amperometric.
+- LMP91000EVM: I2C @ 0x48, SPI on SPI0/CE0. 2-WIRE jumper set = CE-RE shorted (2-electrode
+               wiring). LMP register op-mode stays 3-lead amperometric: the potentiostat amp
+               A1 still drives the shorted CE/RE node to hold the bias. (The chip has no
+               "2-lead amperometric" mode; its only 2-lead mode is galvanic, which won't bias.)
 - MCP23017:    I2C @ 0x27 (A2/A1/A0 all high). VCC = 3.3 V. Port A bits 0-3 -> mux S0-S3.
 - CD74HC4067:  VCC = 3.3 V, EN tied to GND (always enabled). Common line -> LMP WE/TIA input.
                Channels 0-11 -> the 12 devices. All devices share the always-on 0.5 V bias.
 - Bias/gain:   +0.5 V (REFCN 10011011, internal zero 20%), R_TIA = 2.75 kOhm. Both tunable in var.py.
+
+## Install (get the code)
+
+Clone the repository to the path the service file expects,
+`/home/airborne/Documents/AIRBORNE` (clone as the `airborne` user so `~` resolves
+there; if you put it elsewhere, update the two paths in `chrono-logger.service`):
+
+    sudo apt install git
+    mkdir -p ~/Documents
+    cd ~/Documents
+    git clone https://github.com/zac84-pittedu/AIRBORNE.git
+    cd AIRBORNE
+
+You now have `logger.py`, `settings.py`, `var.py`, `chrono-logger.service`, and
+the docs; `Results/` is created automatically on the first run. To update later:
+
+    cd ~/Documents/AIRBORNE && git pull
 
 ## One-time Pi setup
 
@@ -38,7 +58,7 @@ Note: numpy / matplotlib / tkinter are NOT needed by this headless version.
 
 ## Test run (before enabling the service)
 
-    cd /home/pi/chrono
+    cd ~/Documents/AIRBORNE
     sudo python3 logger.py
 
 It prints the output filename and starts scanning; the onboard LED blinks ~1 Hz.

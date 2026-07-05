@@ -64,10 +64,11 @@ EEPROM, unused). Full wiring and one-time Pi configuration are in
 ## Quick start
 
 ```bash
-sudo apt install python3-smbus python3-spidev i2c-tools
+sudo apt install git python3-smbus python3-spidev i2c-tools
+git clone https://github.com/zac84-pittedu/AIRBORNE.git ~/Documents/AIRBORNE
 sudo raspi-config          # enable I2C and SPI, then reboot
 sudo i2cdetect -y 1        # expect 0x27, 0x48, 0x57
-cd /path/to/AIRBORNE
+cd ~/Documents/AIRBORNE
 sudo python3 logger.py     # prints reads/device, LED blinks, writes Results/*.csv
 ```
 
