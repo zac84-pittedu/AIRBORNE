@@ -155,6 +155,7 @@ def main():
             row = [ts, "{:.3f}".format(elapsed)]
             raws = []
             currents = []
+            ohms = []
             for dev in range(N_DEVICES):
                 mux_select(dev)
                 if SETTLE_S > 0:
@@ -171,6 +172,7 @@ def main():
                 r_ohm = device_ohms(current_uA, dev)
                 raws.append(round(raw_mean))
                 currents.append(current_uA)
+                ohms.append(r_ohm)
                 row.append(round(raw_mean))              # mean raw ADC count
                 row.append("{:.4f}".format(current_uA))  # loop current from the mean
                 row.append("" if r_ohm is None else "{:.1f}".format(r_ohm))  # series-corrected device R (ohm)
@@ -190,17 +192,20 @@ def main():
             os.fsync(f.fileno())
 
             # Aligned terminal printout for easy reading (does not affect the CSV).
-            # Each device shows  raw|current(uA); header every TERM_HEADER_EVERY scans.
+            # Each device shows  raw|R_ohm (mux-corrected); header every TERM_HEADER_EVERY scans.
             if PRINT_TO_TERMINAL:
                 if scan_count % TERM_HEADER_EVERY == 0:
                     labels = "  ".join("{:^12}".format("dev{:02d}".format(d))
                                        for d in range(N_DEVICES))
-                    units = "  ".join("{:^12}".format("raw|uA")
+                    units = "  ".join("{:^12}".format("raw|ohm")
                                       for _ in range(N_DEVICES))
                     print("{:>7}  {}".format("elapsed", labels))
                     print("{:>7}  {}".format("(s)", units))
-                cells = "  ".join("{:>6.0f}|{:<5.1f}".format(raws[d], currents[d])
-                                  for d in range(N_DEVICES))
+                cells = "  ".join(
+                    "{:>6.0f}|{:>5}".format(
+                        raws[d],
+                        "open" if ohms[d] is None else "{:.0f}".format(ohms[d]))
+                    for d in range(N_DEVICES))
                 print("{:>7.1f}  {}".format(elapsed, cells))
             scan_count += 1
 
