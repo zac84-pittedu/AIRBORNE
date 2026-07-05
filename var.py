@@ -80,8 +80,9 @@ R_TIA = 2750               # <-- tunable: ohms, MUST match TIA_SETTING's gain
 #     R_device = V_EFF / I_loop - R_SERIES[channel]
 # Constants below come from a resistor-ladder calibration (see SETUP.md); re-run
 # that ladder and update them after any rewire, reflow, or mux swap.
-V_EFF = 0.5095             # effective loop bias (V); ESTIMATE scaled x5 from the
-                           # 0.1 V ladder -- RE-RUN the ladder at 0.5 V to lock it
+V_EFF = 0.489              # effective loop bias (V) at 0.5 V nominal; MEASURED
+                           # from a 12-channel 2200-ohm ladder (mean 0.4889,
+                           # sd 1.2 mV), using the 0.1 V R_SERIES table below.
 I_FLOOR_UA = 0.5           # below this a channel is treated as open (no device)
 R_SERIES = [319, 316, 318, 318, 320, 314,   # ch0-5   (measured)
             318,                             # ch6     (not calibrated -> ~average)
