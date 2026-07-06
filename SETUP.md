@@ -18,12 +18,37 @@ edit the unit's two paths if you use a different location. See Install below.
 
 - LMP91000EVM: I2C @ 0x48, SPI on SPI0/CE0. 2-WIRE jumper set = CE-RE shorted (2-electrode
                wiring). LMP register op-mode stays 3-lead amperometric: the potentiostat amp
-               A1 still drives the shorted CE/RE node to hold the bias. (The chip has no
-               "2-lead amperometric" mode; its only 2-lead mode is galvanic, which won't bias.)
+               A1 still drives the shorted CE/RE node to hold the bias. 
 - MCP23017:    I2C @ 0x27 (A2/A1/A0 all high). VCC = 3.3 V. Port A bits 0-3 -> mux S0-S3.
 - CD74HC4067:  VCC = 3.3 V, EN tied to GND (always enabled). Common line -> LMP WE/TIA input.
                Channels 0-11 -> the 12 devices. All devices share the always-on 0.5 V bias.
 - Bias/gain:   +0.5 V (REFCN 10011011, internal zero 20%), R_TIA = 2.75 kOhm. Both tunable in var.py.
+
+## Connection map
+Only connections that should need to made are to the Pi.  As shipped on 7/6/25 labels include final location
+  ## Color guide
+  Red      --> Pin 1  (3.3 V)
+  Orange   --> Pin 2  (5 V)
+  Green    --> Pin 3  (SDA)
+  L.Blue   --> Pin 5  (SCL)
+  Black    --> Pin 6  (GND)
+  L.Green  --> Pin 19 (MOSI)
+  D.Blue   --> Pin 21 (MISO)
+  Purple   --> Pin 23 (SCLK)
+  White    --> Pin 24 (CE0)
+
+  Red/Black banana plugs go to WE and RE (tied to CE), respectively on LMP
+  
+| Group | From (Pi / MCP) | To |
+|---|---|---|
+| Power | 3.3 V | MCP VCC, mux VCC, LMP 3.3 V |
+| Power | 5 V | LMP VA |
+| Ground | GND | common ground (all boards) |
+| I²C | SDA (BCM2/pin 3), SCL (BCM3/pin 5) | LMP + MCP (shared bus) |
+| SPI | MOSI/MISO/SCLK/CE0 (pins 19/21/23/24) | LMP (direct — cannot go via MCP) |
+| Mux address | MCP PA0–PA3 | CD74HC4067 S0–S3 |
+| Analog | mux common (SIG) | LMP working electrode (WE) |
+| Analog | device return leads | shared CE/RE bias node (2-WIRE jumper set) |
 
 ## Install (get the code)
 
