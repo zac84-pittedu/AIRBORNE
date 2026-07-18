@@ -24,12 +24,13 @@
 #   SD  MISO      SPI1    GP12
 #   SD  CS        gpio    GP13
 #
-# POWER (3.3 V powerbank -> Pico VSYS; a small 3.3->5 V boost makes the 5 V rail):
-#   5 V rail (from boost):  ADC analog supply (EVM 5 V pin)  AND  SD module VCC.
+# POWER (standard 5 V USB powerbank -> Pico micro-USB; NO boost converter needed):
+#   5 V rail = VBUS (pin 40, the micro-USB input voltage):
+#       ADC analog supply (EVM 5 V pin)  AND  SD module VCC.
 #     - the ADC161S626 needs 4.5-5.5 V on its analog supply.
 #     - the SD module in use is the 5 V type, so its VCC comes from 5 V too, NOT
 #       3.3 V (at 3.3 V its regulator browns the card out).
-#   3.3 V rail (Pico 3V3 pin):  LMP91000, MCP23017, CD74HC4067 mux.
+#   3.3 V rail = Pico 3V3(OUT) pin:  LMP91000, MCP23017, CD74HC4067 mux.
 # ---------------------------------------------------------------------------
 
 from machine import Pin, I2C, SPI
@@ -52,7 +53,7 @@ cs = Pin(ADC_CS, Pin.OUT, value=1)
 
 # ---- SD card SPI bus pins (the bus + mount live in logger.py; the pin numbers
 #      are kept here so all wiring is defined in one place). Keep OFF SPI0.
-#      Module VCC = 5 V (see POWER note above), GND to common ground. ----
+#      Module VCC = 5 V from VBUS (see POWER note above), GND to common ground. ----
 SD_SCK, SD_MOSI, SD_MISO, SD_CS = 10, 11, 12, 13
 
 # ===========================================================================
