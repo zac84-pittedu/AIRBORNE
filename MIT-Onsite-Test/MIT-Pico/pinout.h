@@ -8,7 +8,8 @@ static const uint8_t CNT_SDA_PIN = 4;      // GP4 I2C0 SDA
 static const uint8_t CNT_SCL_PIN = 5;      // GP5 I2C0 SCL
 static const uint32_t CNT_I2C_FREQ = 400000;
 
-// Shared I2C1: SHT45, MS5611, ICM-20948, Tiny4FSK (Pico = slave 0x09)
+// I2C0: CNT + additional sensors (SHT45, MS5611, ICM-20948)
+// I2C1: Tiny4FSK only (Pico = slave 0x09)
 static const uint8_t I2C1_SDA_PIN = 2;     // GP2
 static const uint8_t I2C1_SCL_PIN = 3;     // GP3
 static const uint32_t I2C1_FREQ = 400000;

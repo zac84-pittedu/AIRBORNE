@@ -2,8 +2,9 @@
 
 #include "cnt.h"
 #include "cnt_data.h"
-#include "settings.h"
 #include "pinout.h"
+#include "sensor_support.h"
+#include "settings.h"
 #include <SPI.h>
 #include <Wire.h>
 #include <math.h>
@@ -31,8 +32,10 @@ static void publish_cnt_data(const float currents_uA[12]) {
   pkt.cnt3.val2 = current_uA_to_scaled(currents_uA[9]);
   pkt.cnt3.val3 = current_uA_to_scaled(currents_uA[10]);
   pkt.cnt3.val4 = current_uA_to_scaled(currents_uA[11]);
-  pkt.temperature = 0;
-  pkt.humidity = 0;
+
+  SensorSnapshot snapshot;
+  sensors_update(snapshot);
+  sensors_apply_to_packet(pkt, snapshot);
 
   cnt_data_store(pkt);
 }
