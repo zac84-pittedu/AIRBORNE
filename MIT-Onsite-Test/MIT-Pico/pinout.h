@@ -36,8 +36,8 @@ static const uint32_t XYT01_BAUD = 9600;
 // Sensor I2C addresses (I2C1)
 static const uint8_t SHT45_ADDR = 0x44;
 static const uint8_t MS5611_ADDR = 0x77;   // 0x76 if CSB high
-static const uint8_t ICM20948_ADDR_AD0_LOW = 0x68;
-static const uint8_t ICM20948_ADDR_AD0_HIGH = 0x69;
+static const uint8_t ICM20948_ADDR_AD0_LOW = 0x69;
+static const uint8_t ICM20948_ADDR_AD0_HIGH = 0x68;
 
 // LMP91000
 static const uint8_t LMP91000_ADDR = 0x48;

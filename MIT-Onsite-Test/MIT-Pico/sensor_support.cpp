@@ -16,6 +16,15 @@ struct SensorState {
 
 static SensorState g_state;
 
+static const uint8_t ICM20948_REG_BANK_SEL = 0x7F;
+static const uint8_t ICM20948_BANK0 = 0x00;
+static const uint8_t ICM20948_REG_WHO_AM_I = 0x00;
+static const uint8_t ICM20948_REG_USER_CTRL = 0x03;
+static const uint8_t ICM20948_REG_LP_CONFIG = 0x05;
+static const uint8_t ICM20948_REG_PWR_MGMT_1 = 0x06;
+static const uint8_t ICM20948_REG_PWR_MGMT_2 = 0x07;
+static const uint8_t ICM20948_REG_ACCEL_XOUT_H = 0x2D;
+
 static bool i2c_write_reg(uint8_t addr, uint8_t reg, uint8_t value) {
   Wire.beginTransmission(addr);
   Wire.write(reg);
@@ -53,6 +62,24 @@ static bool i2c_read_regs(uint8_t addr, uint8_t reg, uint8_t* data, size_t len) 
   return true;
 }
 
+static bool icm_select_bank(uint8_t bank) {
+  return i2c_write_reg(ICM20948_ADDR_AD0_LOW, ICM20948_REG_BANK_SEL, (uint8_t)(bank << 4));
+}
+
+static bool icm_write_reg_bank(uint8_t bank, uint8_t reg, uint8_t value) {
+  if (!icm_select_bank(bank)) {
+    return false;
+  }
+  return i2c_write_reg(ICM20948_ADDR_AD0_LOW, reg, value);
+}
+
+static bool icm_read_reg_bank(uint8_t bank, uint8_t reg, uint8_t& value) {
+  if (!icm_select_bank(bank)) {
+    return false;
+  }
+  return i2c_read_reg(ICM20948_ADDR_AD0_LOW, reg, value);
+}
+
 static void init_sht45() {
   if (!i2c_write_reg(SHT45_ADDR, 0x30, 0x0A)) {
     return;
@@ -70,10 +97,40 @@ static void init_ms5611() {
 
 static void init_icm2098() {
   uint8_t whoami = 0;
-  if (!i2c_read_reg(ICM20948_ADDR_AD0_LOW, 0x00, whoami)) {
+  if (!icm_read_reg_bank(ICM20948_BANK0, ICM20948_REG_WHO_AM_I, whoami)) {
     return;
   }
-  g_state.icm2098_ready = (whoami == 0xEA || whoami == 0x00);
+  if (whoami != 0xEA) {
+    return;
+  }
+
+  // Match the core SparkFun bring-up behavior: reset, wake, select clock, enable sensors.
+  if (!icm_write_reg_bank(ICM20948_BANK0, ICM20948_REG_PWR_MGMT_1, 0x80)) {
+    return;
+  }
+  delay(100);
+
+  if (!icm_write_reg_bank(ICM20948_BANK0, ICM20948_REG_PWR_MGMT_1, 0x01)) {
+    return;
+  }
+  delay(10);
+
+  if (!icm_write_reg_bank(ICM20948_BANK0, ICM20948_REG_PWR_MGMT_2, 0x00)) {
+    return;
+  }
+  if (!icm_write_reg_bank(ICM20948_BANK0, ICM20948_REG_LP_CONFIG, 0x00)) {
+    return;
+  }
+  if (!icm_write_reg_bank(ICM20948_BANK0, ICM20948_REG_USER_CTRL, 0x00)) {
+    return;
+  }
+
+  // Keep bank 0 selected for data reads.
+  if (!icm_select_bank(ICM20948_BANK0)) {
+    return;
+  }
+
+  g_state.icm2098_ready = true;
 }
 
 static void init_max31865() {
@@ -112,7 +169,10 @@ static bool read_ms5611(float& temp_c, float& pressure_hpa) {
 
 static bool read_icm2098(float& ax, float& ay, float& az, float& gx, float& gy, float& gz) {
   uint8_t data[12] = {0};
-  if (!i2c_read_regs(ICM20948_ADDR_AD0_LOW, 0x2D, data, 12)) {
+  if (!icm_select_bank(ICM20948_BANK0)) {
+    return false;
+  }
+  if (!i2c_read_regs(ICM20948_ADDR_AD0_LOW, ICM20948_REG_ACCEL_XOUT_H, data, 12)) {
     return false;
   }
   int16_t x = (int16_t)(((uint16_t)data[0] << 8) | data[1]);

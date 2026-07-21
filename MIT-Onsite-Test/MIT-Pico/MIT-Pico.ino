@@ -44,7 +44,7 @@ void loop() {
     Serial.print(" C, XY-T01 Status: ");
     Serial.print(snapshot.xyt01_status);
     Serial.print(", Sensor Status Bits: ");
-    Serial.println(snapshot.sensor_status_bits, BIN);    
+    Serial.println(snapshot.sensor_status_bits, BIN); 
     // cnt_data_load(currents_test);
     // Serial.print("CNT1 Values: ");
     // Serial.print(currents_test.cnt1.val1);
