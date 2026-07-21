@@ -25,6 +25,9 @@ static const uint8_t ICM20948_REG_PWR_MGMT_1 = 0x06;
 static const uint8_t ICM20948_REG_PWR_MGMT_2 = 0x07;
 static const uint8_t ICM20948_REG_ACCEL_XOUT_H = 0x2D;
 
+ICM_20948_I2C icm;
+Adafruit_SHT4x sht4 = Adafruit_SHT4x();
+
 static bool i2c_write_reg(uint8_t addr, uint8_t reg, uint8_t value) {
   Wire.beginTransmission(addr);
   Wire.write(reg);
@@ -81,9 +84,10 @@ static bool icm_read_reg_bank(uint8_t bank, uint8_t reg, uint8_t& value) {
 }
 
 static void init_sht45() {
-  if (!i2c_write_reg(SHT45_ADDR, 0x30, 0x0A)) {
+  if(!sht4.begin()) {
     return;
   }
+
   g_state.sht45_ready = true;
 }
 
@@ -96,41 +100,29 @@ static void init_ms5611() {
 }
 
 static void init_icm2098() {
-  uint8_t whoami = 0;
-  if (!icm_read_reg_bank(ICM20948_BANK0, ICM20948_REG_WHO_AM_I, whoami)) {
-    return;
-  }
-  if (whoami != 0xEA) {
-    return;
+  bool init = false;
+  icm.begin(Wire);
+
+  if(icm.status != ICM_20948_Stat_Ok) {
+    Serial.print("ICM20948 initialization failed: ");
+    Serial.print(icm.statusString());
+    delay(500);
+    Serial.println("Trying one more time...");
+    icm.begin(Wire);
+    if(icm.status != ICM_20948_Stat_Ok) {
+      Serial.print("ICM20948 initialization failed: ");
+      Serial.println(icm.statusString());
+      return;
+    } else {
+      init = true;
+      Serial.println("ICM20948 initialization successful.");
+    }
+  } else {
+    init = true;
+    Serial.println("ICM20948 initialization successful.");
   }
 
-  // Match the core SparkFun bring-up behavior: reset, wake, select clock, enable sensors.
-  if (!icm_write_reg_bank(ICM20948_BANK0, ICM20948_REG_PWR_MGMT_1, 0x80)) {
-    return;
-  }
-  delay(100);
-
-  if (!icm_write_reg_bank(ICM20948_BANK0, ICM20948_REG_PWR_MGMT_1, 0x01)) {
-    return;
-  }
-  delay(10);
-
-  if (!icm_write_reg_bank(ICM20948_BANK0, ICM20948_REG_PWR_MGMT_2, 0x00)) {
-    return;
-  }
-  if (!icm_write_reg_bank(ICM20948_BANK0, ICM20948_REG_LP_CONFIG, 0x00)) {
-    return;
-  }
-  if (!icm_write_reg_bank(ICM20948_BANK0, ICM20948_REG_USER_CTRL, 0x00)) {
-    return;
-  }
-
-  // Keep bank 0 selected for data reads.
-  if (!icm_select_bank(ICM20948_BANK0)) {
-    return;
-  }
-
-  g_state.icm2098_ready = true;
+  g_state.icm2098_ready = icm.dataReady();
 }
 
 static void init_max31865() {
@@ -146,14 +138,12 @@ static void init_max31865() {
 }
 
 static bool read_sht45(float& temp_c, float& humidity_pct) {
-  uint8_t data[6] = {0};
-  if (!i2c_read_regs(SHT45_ADDR, 0x00, data, 6)) {
+  sensors_event_t temp_event, humidity_event;
+  if (!sht4.getEvent(&humidity_event, &temp_event)) {
     return false;
   }
-  uint16_t t_raw = ((uint16_t)data[0] << 8) | data[1];
-  uint16_t h_raw = ((uint16_t)data[3] << 8) | data[4];
-  temp_c = -45.0f + (175.0f * (float)t_raw / 65535.0f);
-  humidity_pct = (100.0f * (float)h_raw / 65535.0f);
+  temp_c = temp_event.temperature;
+  humidity_pct = humidity_event.relative_humidity;
   return true;
 }
 
@@ -168,25 +158,16 @@ static bool read_ms5611(float& temp_c, float& pressure_hpa) {
 }
 
 static bool read_icm2098(float& ax, float& ay, float& az, float& gx, float& gy, float& gz) {
-  uint8_t data[12] = {0};
-  if (!icm_select_bank(ICM20948_BANK0)) {
+  if (!icm.dataReady()) {
     return false;
   }
-  if (!i2c_read_regs(ICM20948_ADDR_AD0_LOW, ICM20948_REG_ACCEL_XOUT_H, data, 12)) {
-    return false;
-  }
-  int16_t x = (int16_t)(((uint16_t)data[0] << 8) | data[1]);
-  int16_t y = (int16_t)(((uint16_t)data[2] << 8) | data[3]);
-  int16_t z = (int16_t)(((uint16_t)data[4] << 8) | data[5]);
-  int16_t gx_raw = (int16_t)(((uint16_t)data[6] << 8) | data[7]);
-  int16_t gy_raw = (int16_t)(((uint16_t)data[8] << 8) | data[9]);
-  int16_t gz_raw = (int16_t)(((uint16_t)data[10] << 8) | data[11]);
-  ax = (float)x / 16384.0f;
-  ay = (float)y / 16384.0f;
-  az = (float)z / 16384.0f;
-  gx = (float)gx_raw / 131.0f;
-  gy = (float)gy_raw / 131.0f;
-  gz = (float)gz_raw / 131.0f;
+  icm.getAGMT();
+  ax = icm.accX() / 1000.0f;
+  ay = icm.accY() / 1000.0f;
+  az = icm.accZ() / 1000.0f;
+  gx = icm.gyrX();
+  gy = icm.gyrY();
+  gz = icm.gyrZ();
   return true;
 }
 
@@ -239,12 +220,12 @@ void sensors_update(SensorSnapshot& snapshot) {
       snapshot.sensor_status_bits |= 0x02;
     }
   }
-  if (g_state.icm2098_ready) {
+  //if (g_state.icm2098_ready) {
     if (read_icm2098(snapshot.icm2098_accel_x_g, snapshot.icm2098_accel_y_g, snapshot.icm2098_accel_z_g,
                      snapshot.icm2098_gyro_x_dps, snapshot.icm2098_gyro_y_dps, snapshot.icm2098_gyro_z_dps)) {
       snapshot.sensor_status_bits |= 0x04;
     }
-  }
+  //}
   if (g_state.max31865_ready) {
     if (read_max31865(snapshot.max31865_temperature_c)) {
       snapshot.sensor_status_bits |= 0x08;

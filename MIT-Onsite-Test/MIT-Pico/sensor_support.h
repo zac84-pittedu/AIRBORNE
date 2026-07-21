@@ -1,6 +1,9 @@
 #pragma once
 
 #include <Arduino.h>
+#include <Adafruit_MAX31865.h>
+#include <ICM_20948.h>
+#include "Adafruit_SHT4x.h"
 #include "cnt_data.h"
 
 struct SensorSnapshot {
